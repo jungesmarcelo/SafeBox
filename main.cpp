@@ -11,7 +11,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
-//#include <Servo.h>
+#include <ESP32Servo.h>
 
 
 // Network setings
@@ -24,11 +24,11 @@ const char* mqtt_server = "161.35.227.231";
 int pino_passo = 17;        // Step pin
 int pino_direcao = 18;      // Direction pin
 const int pino_chave1 = 23;   // End of course 1 pin 
-const int pino_chave2 = 24;   // End of course 1 pin
+const int pino_chave2 = 22;   // End of course 1 pin
 int direcao = 1;            // Direction variable inicialize 
+int pos = 0;                //servo motor posicion variable inicialize
 
-
-//Servo myservo;  // create servo object to control a servo
+Servo myservo;  // create servo object to control a servo
 WiFiClient espClient;
 PubSubClient client(espClient);
 
@@ -67,37 +67,57 @@ void callback(char* topic, byte* payload, unsigned int length)
     //return;
     //if((int)payload[i]>194||(int)payload[i]<0) 
 
-  if(location>0) {
-    // Define a direcao de rotacao
-    direcao = 1;
+  if(location==1) {                                // Abre gaveta
+    
+    if (myservo.read() != 0){
+      myservo.write(0);
+      delay(1000);
+    }
+
+    direcao = 1;                                  // Define a direcao de rotacao
+    digitalWrite(pino_direcao, direcao);
+    while(digitalRead(pino_chave2) == HIGH){
+      digitalWrite(pino_passo, 1);
+      delay(1);
+      digitalWrite(pino_passo, 0);
+      delay(1);
+      //Serial.print("Sinal pino chave 1 dentro whille:   ");
+      //Serial.print(digitalRead(pino_chave2));
+    }
+  } //end condition 1
+
+  else if(location==2) {                          // Fecha gaveta
+     if (myservo.read() != 0){
+      myservo.write(0);
+      delay(1000);
+    }
+    direcao = 0;                                  // Inverte a direcao de rotacao
     digitalWrite(pino_direcao, direcao);
     
-    for (int p=0 ; p < location; p++) {
-      //Serial.println(p);
+    while (digitalRead(pino_chave1) == HIGH){
       digitalWrite(pino_passo, 1);
       delay(1);
       digitalWrite(pino_passo, 0);
       delay(1);
     }
-  }
-
-  else if(location<0) {
-    // Inverte a direcao de rotacao
-    direcao = 0;
-    location = -location;
-    //Serial.println(location);
-    digitalWrite(pino_direcao, direcao);
-
-    for (int p=0 ; p < location; p++) {
-      //Serial.println(p);
-      digitalWrite(pino_passo, 1);
-      delay(1);
-      digitalWrite(pino_passo, 0);
-      delay(1);
+  delay(1000);
+  if (myservo.read() == 0){
+      myservo.write(85);
+      delay(500);
     }
-  }
+ 
+  } //end of condition 2
 
-  location = 0;  
+  else if(location==3) {                        //Trava motor
+   myservo.write(85);
+
+  }
+  
+  else if(location==4) {                        //Destrava motor 
+   myservo.write(0);
+
+  }
+  
     //break;
     //myservo.write((int)payload[i]);              // tell servo to go to position in variable '(int)payload[i]'
   
@@ -138,6 +158,7 @@ void setup() {
   pinMode(pino_direcao, OUTPUT);
   pinMode(pino_chave1, INPUT_PULLUP);
   pinMode(pino_chave2, INPUT_PULLUP);
+  myservo.attach(13);  // attaches the servo on pin 13 to the servo object
 
   Serial.begin(115200);
   setup_wifi();
@@ -145,6 +166,14 @@ void setup() {
   client.setCallback(callback);
   //myservo.attach(D1);  // attaches the servo on pin D1 to the servo object
   
+  Serial.print(digitalRead(pino_chave1));
+  Serial.print(digitalRead(pino_chave2));
+
+ if (myservo.read() != 0){
+      myservo.write(0);
+      delay(1000);
+    }
+
   if(digitalRead(pino_chave1) == HIGH)
   { 
     while(digitalRead(pino_chave1) == HIGH)
@@ -156,6 +185,11 @@ void setup() {
       digitalWrite(pino_passo, 0);
       delay(1);
       }
+  }
+  
+  if (myservo.read() == 0){
+    delay(1000);
+    myservo.write(85);    
   }
 
 }
