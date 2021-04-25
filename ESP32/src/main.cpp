@@ -23,8 +23,8 @@ const char* mqtt_server = "161.35.227.231";
 // Default pins
 int pino_passo = 17;        // Step pin
 int pino_direcao = 18;      // Direction pin
-const int pino_chave1 = 23;   // End of course 1 pin 
-const int pino_chave2 = 22;   // End of course 1 pin
+const int pino_chave1 = 23;   // End of course close pin 
+const int pino_chave2 = 22;   // End of course opem pin
 int direcao = 1;            // Direction variable inicialize 
 int pos = 0;                //servo motor posicion variable inicialize
 
