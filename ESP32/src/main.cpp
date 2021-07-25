@@ -18,7 +18,7 @@
 
 // Network setings
 const char* ssid = "JUNGES";
-const char* password = "999734713";
+const char* password = "senha";
 const char* mqtt_server = "161.35.1.122";
 int temps = 0;
 
@@ -188,6 +188,12 @@ void reconnect() {
   }
 } //end reconnect()
 
+void clearData(){
+  while(data_count !=0){
+    Data[data_count--] = 0; 
+  }
+  return;
+}
 
 void setup() {
   
@@ -260,10 +266,48 @@ void loop() {
       lcd.clear();
 
       if(!strcmp(Data, Master)){
-        lcd.print("Correct");
-        digitalWrite(signalPin, HIGH); 
-        delay(5000);
-        digitalWrite(signalPin, LOW);
+        lcd.print("Correct");           //se a senha for correta abre a gaveta
+        //---------------------------------------
+        if(digitalRead(pino_chave1) == LOW) {                                // Abre gaveta
+    
+          if (myservo.read() != 0){
+            myservo.write(0);
+            delay(1000);
+          }
+
+          direcao = 1;                                  // Define a direcao de rotacao
+          digitalWrite(pino_direcao, direcao);
+          while(digitalRead(pino_chave2) == HIGH){
+            digitalWrite(pino_passo, 1);
+            delay(1);
+            digitalWrite(pino_passo, 0);
+            delay(1);
+          }
+        } //end condition 1
+
+        else if(digitalRead(pino_chave1) == HIGH) {                          // Fecha gaveta
+          if (myservo.read() != 0){
+            myservo.write(0);
+            delay(1000);
+          }
+          direcao = 0;                                  // Inverte a direcao de rotacao
+          digitalWrite(pino_direcao, direcao);
+          
+          while (digitalRead(pino_chave1) == HIGH){
+            digitalWrite(pino_passo, 1);
+            delay(1);
+            digitalWrite(pino_passo, 0);
+            delay(1);
+          }
+        delay(1000);
+        if (myservo.read() == 0){
+            myservo.write(85);
+            delay(500);
+          }
+      
+        } //end of condition 2
+
+        //----------------------------------------
         }
       else{
         lcd.print("Incorrect");
@@ -275,14 +319,10 @@ void loop() {
     }
    
 
-
   }
   
   client.loop();
 
 }
 
-void clearData(){
-  while(data_count !=0){
-    Data[data_count--] = 0; 
-  }
+
