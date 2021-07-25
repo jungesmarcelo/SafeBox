@@ -1,5 +1,5 @@
 /* 
- * PROJETO INTEGRADOR 5 - IFSC
+ * PROJETO INTEGRADOR 6 - IFSC
  *
  * 
  *   Author: Marcelo Junges
@@ -12,15 +12,16 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <ESP32Servo.h>
-
+#include <Keypad.h>
+#include <Wire.h>
 
 // Network setings
-const char* ssid = "Suzana";
-const char* password = "20461203";
-const char* mqtt_server = "161.35.227.231";
+const char* ssid = "JUNGES";
+const char* password = "999734713";
+const char* mqtt_server = "161.35.1.122";
+int temps = 0;
 
-
-// Default pins
+// Default init configs pi 1
 int pino_passo = 17;        // Step pin
 int pino_direcao = 18;      // Direction pin
 const int pino_chave1 = 23;   // End of course close pin 
@@ -32,6 +33,41 @@ Servo myservo;  // create servo object to control a servo
 WiFiClient espClient;
 PubSubClient client(espClient);
 
+// default init configs lcd
+
+
+
+
+// default init configs keypad
+
+const byte ROWS = 4; //four rows
+const byte COLS = 3; //four columns
+
+char keys[ROWS][COLS] = {
+    {'1', '2', '3'},
+    {'4', '5', '6'},
+    {'7', '8', '9'},
+    {'*', '0', '#'}};
+
+byte rowPins[ROWS] = {13, 12, 14, 27};
+byte colPins[COLS] = {26, 25, 33};
+Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
+
+#define Password_Length 8
+char Data[Password_Length]; 
+char Master[Password_Length] = "123456"; 
+byte data_count = 0, master_count = 0;
+bool Pass_is_good;
+char customKey;
+
+
+
+
+
+
+void setup_serial(){
+  Serial.begin(9600);
+}
 
 void setup_wifi() {
    delay(100);
@@ -53,19 +89,15 @@ void setup_wifi() {
 
 
 
+
+
 void callback(char* topic, byte* payload, unsigned int length) 
 {
 
   Serial.println("Command from MQTT broker is :   ");
-  //Serial.println((char*)payload);
   
   int location=String((char*)payload).toInt();
   Serial.println(location);
-  
-
-  //if((location>194)||(location<0))
-    //return;
-    //if((int)payload[i]>194||(int)payload[i]<0) 
 
   if(location==1) {                                // Abre gaveta
     
@@ -81,8 +113,6 @@ void callback(char* topic, byte* payload, unsigned int length)
       delay(1);
       digitalWrite(pino_passo, 0);
       delay(1);
-      //Serial.print("Sinal pino chave 1 dentro whille:   ");
-      //Serial.print(digitalRead(pino_chave2));
     }
   } //end condition 1
 
@@ -116,11 +146,7 @@ void callback(char* topic, byte* payload, unsigned int length)
   else if(location==4) {                        //Destrava motor 
    myservo.write(0);
 
-  }
-  
-    //break;
-    //myservo.write((int)payload[i]);              // tell servo to go to position in variable '(int)payload[i]'
-  
+  }  
 }//end callback
 
 
@@ -160,22 +186,23 @@ void setup() {
   pinMode(pino_chave2, INPUT_PULLUP);
   myservo.attach(13);  // attaches the servo on pin 13 to the servo object
 
-  Serial.begin(115200);
+  setup_serial();
   setup_wifi();
+
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
-  //myservo.attach(D1);  // attaches the servo on pin D1 to the servo object
   
   Serial.print(digitalRead(pino_chave1));
   Serial.print(digitalRead(pino_chave2));
 
- if (myservo.read() != 0){
-      myservo.write(0);
-      delay(1000);
-    }
+
 
   if(digitalRead(pino_chave1) == HIGH)
   { 
+    if (myservo.read() != 0){
+      myservo.write(0);
+      delay(1000);
+    }
     while(digitalRead(pino_chave1) == HIGH)
       {
       direcao = 0;
@@ -185,12 +212,14 @@ void setup() {
       digitalWrite(pino_passo, 0);
       delay(1);
       }
-  }
-  
-  if (myservo.read() == 0){
+    
+    if (myservo.read() == 0){
     delay(1000);
     myservo.write(85);    
+    }
   }
+  
+
 
 }
 
@@ -199,5 +228,6 @@ void loop() {
     reconnect();
   }
   client.loop();
+  
 
 }
