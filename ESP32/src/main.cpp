@@ -14,6 +14,7 @@
 #include <ESP32Servo.h>
 #include <Keypad.h>
 #include <Wire.h>
+#include <LiquidCrystal_I2C.h> 
 
 // Network setings
 const char* ssid = "JUNGES";
@@ -35,7 +36,10 @@ PubSubClient client(espClient);
 
 // default init configs lcd
 
-
+#define endereco  0x27 // Endereços comuns: 0x27, 0x3F
+#define colunas   16
+#define linhas    2
+LiquidCrystal_I2C lcd(endereco, colunas, linhas);
 
 
 // default init configs keypad
@@ -51,7 +55,7 @@ char keys[ROWS][COLS] = {
 
 byte rowPins[ROWS] = {13, 12, 14, 27};
 byte colPins[COLS] = {26, 25, 33};
-Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
+Keypad customKeypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 
 #define Password_Length 8
 char Data[Password_Length]; 
@@ -69,26 +73,34 @@ void setup_serial(){
   Serial.begin(9600);
 }
 
+
 void setup_wifi() {
    delay(100);
   // connecting to a WiFi network
     Serial.print("Connecting to ");
     Serial.println(ssid);
     WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED) 
+    while (WiFi.status() != WL_CONNECTED and temps < 3) 
     {
       delay(500);
-      Serial.print(".");
+      Serial.print("...");
+      temps+=1;
     }
   randomSeed(micros());
   Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
+  Serial.println("WiFi status: ");
+  Serial.print(WiFi.status());
+  //Serial.println(WiFi.localIP());
 }
 
 
-
+void setup_lcd(){
+  lcd.init(); // INICIA A COMUNICAÇÃO COM O DISPLAY
+  lcd.backlight(); // LIGA A ILUMINAÇÃO DO DISPLAY
+  lcd.print("Inicializando..."); 
+  delay(2000); 
+  lcd.clear(); // LIMPA O DISPLAY
+}
 
 
 void callback(char* topic, byte* payload, unsigned int length) 
@@ -150,7 +162,6 @@ void callback(char* topic, byte* payload, unsigned int length)
 }//end callback
 
 
-
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) 
@@ -177,6 +188,7 @@ void reconnect() {
   }
 } //end reconnect()
 
+
 void setup() {
   
   // Define os pinos como saida
@@ -188,6 +200,7 @@ void setup() {
 
   setup_serial();
   setup_wifi();
+  setup_lcd();
 
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
@@ -224,10 +237,52 @@ void setup() {
 }
 
 void loop() {
-  if (!client.connected()) {
+
+  if (!client.connected() and temps < 3) {          
     reconnect();
+    temps+=1;
   }
-  client.loop();
+
+  if (!client.connected()) {
+    customKey = customKeypad.getKey();
+
+    lcd.setCursor(0,0);
+    lcd.print("Enter Password:");
+    
+    if (customKey){
+      Data[data_count] = customKey; 
+      lcd.setCursor(data_count,1); 
+      lcd.print(Data[data_count]); 
+      data_count++; 
+        }
+    
+    if(data_count == Password_Length-1){
+      lcd.clear();
+
+      if(!strcmp(Data, Master)){
+        lcd.print("Correct");
+        digitalWrite(signalPin, HIGH); 
+        delay(5000);
+        digitalWrite(signalPin, LOW);
+        }
+      else{
+        lcd.print("Incorrect");
+        delay(1000);
+        }
+      
+      lcd.clear();
+      clearData();  
+    }
+   
+
+
+  }
   
+  client.loop();
 
 }
+
+void clearData(){
+  while(data_count !=0){
+    Data[data_count--] = 0; 
+  }
