@@ -18,15 +18,16 @@
 
 // Network setings
 const char* ssid = "JUNGES";
-const char* password = "senha";
+const char* password = "999734713";
 const char* mqtt_server = "161.35.1.122";
 int temps = 0;
+int temps2 = 0;
 
 // Default init configs pi 1
-int pino_passo = 17;        // Step pin
-int pino_direcao = 18;      // Direction pin
-const int pino_chave1 = 23;   // End of course close pin 
-const int pino_chave2 = 22;   // End of course opem pin
+int pino_passo = 15;        // Step pin
+int pino_direcao = 2;      // Direction pin
+const int pino_chave1 = 4;   // End of course close pin 
+const int pino_chave2 = 16;   // End of course opem pin
 int direcao = 1;            // Direction variable inicialize 
 int pos = 0;                //servo motor posicion variable inicialize
 
@@ -53,11 +54,11 @@ char keys[ROWS][COLS] = {
     {'7', '8', '9'},
     {'*', '0', '#'}};
 
-byte rowPins[ROWS] = {13, 12, 14, 27};
-byte colPins[COLS] = {26, 25, 33};
+byte rowPins[ROWS] = {12, 14, 27, 26};
+byte colPins[COLS] = {25, 33, 32};
 Keypad customKeypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 
-#define Password_Length 8
+#define Password_Length 7
 char Data[Password_Length]; 
 char Master[Password_Length] = "123456"; 
 byte data_count = 0, master_count = 0;
@@ -79,8 +80,10 @@ void setup_wifi() {
   // connecting to a WiFi network
     Serial.print("Connecting to ");
     Serial.println(ssid);
+    Serial.println(password);
     WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED and temps < 3) 
+    
+    while (WiFi.status() != WL_CONNECTED and temps < 10) 
     {
       delay(500);
       Serial.print("...");
@@ -90,7 +93,7 @@ void setup_wifi() {
   Serial.println("");
   Serial.println("WiFi status: ");
   Serial.print(WiFi.status());
-  //Serial.println(WiFi.localIP());
+  Serial.println(WiFi.localIP());
 }
 
 
@@ -112,7 +115,7 @@ void callback(char* topic, byte* payload, unsigned int length)
   Serial.println(location);
 
   if(location==1) {                                // Abre gaveta
-    
+    client.publish("status/box","Box opening...");
     if (myservo.read() != 0){
       myservo.write(0);
       delay(1000);
@@ -126,10 +129,12 @@ void callback(char* topic, byte* payload, unsigned int length)
       digitalWrite(pino_passo, 0);
       delay(1);
     }
+    client.publish("status/box","Box open");
   } //end condition 1
 
   else if(location==2) {                          // Fecha gaveta
-     if (myservo.read() != 0){
+    client.publish("status/box","Box closing...");
+    if (myservo.read() != 0){
       myservo.write(0);
       delay(1000);
     }
@@ -147,7 +152,8 @@ void callback(char* topic, byte* payload, unsigned int length)
       myservo.write(85);
       delay(500);
     }
- 
+  client.publish("status/box","Box close");
+
   } //end of condition 2
 
   else if(location==3) {                        //Trava motor
@@ -164,7 +170,7 @@ void callback(char* topic, byte* payload, unsigned int length)
 
 void reconnect() {
   // Loop until we're reconnected
-  while (!client.connected()) 
+  while (!client.connected() and temps2 < 3) 
   {
     Serial.print("Attempting MQTT connection...");
     // Create a random client ID
@@ -181,10 +187,11 @@ void reconnect() {
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
+      Serial.println(" try again in 2 seconds");
       // Wait 6 seconds before retrying
-      delay(6000);
+      delay(2000);
     }
+    temps2+=1;
   }
 } //end reconnect()
 
@@ -244,9 +251,9 @@ void setup() {
 
 void loop() {
 
-  if (!client.connected() and temps < 3) {          
-    reconnect();
-    temps+=1;
+  if (!client.connected()) {
+  reconnect();
+    
   }
 
   if (!client.connected()) {
@@ -324,5 +331,4 @@ void loop() {
   client.loop();
 
 }
-
 
