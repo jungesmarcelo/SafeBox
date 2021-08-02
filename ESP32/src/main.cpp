@@ -2,7 +2,7 @@
  * PROJETO INTEGRADOR 6 - IFSC
  *
  *   ---  SafeBox  ------
- *   
+ *
  *
  *
  */
@@ -21,7 +21,7 @@
 // Network setings
 const char* ssid = "Junges-2.0";              //wifi SSID
 const char* password = "junges2402";          // wifi password
-const char* mqtt_server = "161.35.1.122";     //host mqtt 
+const char* mqtt_server = "161.35.1.122";     //host mqtt
 int temps = 0;                                //varible for count attempts conection to wifi
 int temps2 = 0;                               //varible for count attempts conection to mqtt
 
@@ -93,6 +93,9 @@ void setup_wifi() {        // connecting to a WiFi network
       temps+=1;
     }
   randomSeed(micros());
+  if (WiFi.status() == WL_CONNECTED){
+    lcd.print("Wifi connected");
+  }
   Serial.println("");
   Serial.println("WiFi status: ");
   Serial.print(WiFi.status());
@@ -101,7 +104,7 @@ void setup_wifi() {        // connecting to a WiFi network
 
 void setup_lcd(){
   lcd.init(); // init display comunication
-  lcd.backlight(); // turn on backlight 
+  lcd.backlight(); // turn on backlight
   lcd.print("Inicializando...");
   delay(2000);
   lcd.clear();
@@ -111,7 +114,7 @@ void setup_rfid(){
   SPI.begin();   // start comunication SPI to the RFID
   mfrc522.PCD_Init();  //init RFID module
   mfrc522.PCD_DumpVersionToSerial(); // debug mfrc version firmware
-} 
+}
 
 void callback(char* topic, byte* payload, unsigned int length) // void to handle the mqtt data
 {
@@ -175,7 +178,7 @@ void callback(char* topic, byte* payload, unsigned int length) // void to handle
 }//end callback
 
 void reconnect() {     // Loop until we're reconnected to mqtt server, try 3 times
-  
+
   while (!client.connected() and temps2 < 3)
   {
     Serial.print("Attempting MQTT connection...");
@@ -253,16 +256,16 @@ void loop() {
   }
 
   if (!client.connected()) {
-  
+
     //Serial.print(mfrc522.PICC_IsNewCardPresent());
 
     if (mfrc522.PICC_IsNewCardPresent() and mfrc522.PICC_ReadCardSerial()) {   //test if there is any tag present
       Serial.print("new tag is present");
       String conteudo = "";      // inicilizate string to store tag content
- 
-      Serial.println("id da tag :"); 
-    
-      for (byte i = 0; i < mfrc522.uid.size; i++){       // verify bits on card memory        
+
+      Serial.println("id da tag :");
+
+      for (byte i = 0; i < mfrc522.uid.size; i++){       // verify bits on card memory
         Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
         Serial.print(mfrc522.uid.uidByte[i], HEX);
         conteudo.concat(String(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ")); //concatenate tag infos
@@ -270,7 +273,7 @@ void loop() {
       }
       Serial.println();
       conteudo.toUpperCase();                      // upper case conteudo
-    
+
       if (conteudo.substring(1) == "54 67 ED F7"){  //test if presented tag is the correct tag
         Serial.println("Tag correta, abrindo caixa");
         lcd.clear();
@@ -330,11 +333,11 @@ void loop() {
 
     lcd.setCursor(0,0);
     lcd.print("Password or tag");
-    
+
     //Serial.print(customKey);
 
     if (customKey){
-      Data[data_count] = customKey; 
+      Data[data_count] = customKey;
       lcd.setCursor(data_count,1);
       lcd.print(Data[data_count]);
       data_count++;
@@ -344,7 +347,7 @@ void loop() {
       lcd.clear();
 
       if(!strcmp(Data, Master)){  //compair pass
-        lcd.print("Correct");           
+        lcd.print("Correct");
         if(digitalRead(pino_chave1) == LOW) {                                // open box
 
           if (myservo.read() != 0){
