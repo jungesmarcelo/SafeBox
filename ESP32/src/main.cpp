@@ -1,8 +1,8 @@
 /*
  * PROJETO INTEGRADOR 6 - IFSC
  *
- *
- *   Author: Marcelo Junges
+ *   ---  SafeBox  ------
+ *   
  *
  *
  */
@@ -19,17 +19,17 @@
 #include <MFRC522.h>
 
 // Network setings
-const char* ssid = "Junges-2.0";
-const char* password = "junges2402";
-const char* mqtt_server = "161.35.1.122";
-int temps = 0;
-int temps2 = 0;
+const char* ssid = "Junges-2.0";              //wifi SSID
+const char* password = "junges2402";          // wifi password
+const char* mqtt_server = "161.35.1.122";     //host mqtt 
+int temps = 0;                                //varible for count attempts conection to wifi
+int temps2 = 0;                               //varible for count attempts conection to mqtt
 
-// Default init configs pi 1
+// Default init configs pi 2
 int pino_passo = 15;        // Step pin
 int pino_direcao = 2;      // Direction pin
 const int pino_chave1 = 4;   // End of course close pin
-const int pino_chave2 = 16;   // End of course opem pin
+const int pino_chave2 = 16;   // End of course open pin
 int direcao = 1;            // Direction variable inicialize
 int pos = 0;                //servo motor posicion variable inicialize
 
@@ -37,15 +37,15 @@ Servo myservo;  // create servo object to control a servo
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-// default init configs lcd
+// default configs lcd
 
 #define endereco  0x27 // Endereços comuns: 0x27, 0x3F
 #define colunas   16
 #define linhas    2
 LiquidCrystal_I2C lcd(endereco, colunas, linhas);
+//end default configs lcd
 
-
-// default init configs keypad
+// default configs keypad
 
 const byte ROWS = 4; //four rows
 const byte COLS = 3; //four columns
@@ -66,26 +66,27 @@ char Master[Password_Length] = "123456";
 byte data_count = 0, master_count = 0;
 bool Pass_is_good;
 char customKey;
+//end default configs keypad
 
 //default confis rfid
+
 #define SS_PIN 14
 #define RST_PIN 27
 MFRC522 mfrc522(SS_PIN, RST_PIN);
-
+//end default configs rfid
 
 void setup_serial(){
   Serial.begin(9600);
 }
 
-void setup_wifi() {
+void setup_wifi() {        // connecting to a WiFi network
    delay(100);
-  // connecting to a WiFi network
     Serial.print("Connecting to ");
     Serial.println(ssid);
     Serial.println(password);
     WiFi.begin(ssid, password);
 
-    while (WiFi.status() != WL_CONNECTED and temps < 10)
+    while (WiFi.status() != WL_CONNECTED and temps < 10)  // try 10 times to connect wifi, if not possivel, skip
     {
       delay(500);
       Serial.print("...");
@@ -99,20 +100,20 @@ void setup_wifi() {
 }
 
 void setup_lcd(){
-  lcd.init(); // INICIA A COMUNICAÇÃO COM O DISPLAY
-  lcd.backlight(); // LIGA A ILUMINAÇÃO DO DISPLAY
+  lcd.init(); // init display comunication
+  lcd.backlight(); // turn on backlight 
   lcd.print("Inicializando...");
   delay(2000);
-  lcd.clear(); // LIMPA O DISPLAY
+  lcd.clear();
 }
 
 void setup_rfid(){
-  SPI.begin();   // inicia a comunicacao SPI que sera usada para comunicacao com o mudulo RFID
-  mfrc522.PCD_Init();  //inicia o modulo RFID
-  mfrc522.PCD_DumpVersionToSerial();
+  SPI.begin();   // start comunication SPI to the RFID
+  mfrc522.PCD_Init();  //init RFID module
+  mfrc522.PCD_DumpVersionToSerial(); // debug mfrc version firmware
 } 
 
-void callback(char* topic, byte* payload, unsigned int length)
+void callback(char* topic, byte* payload, unsigned int length) // void to handle the mqtt data
 {
 
   Serial.println("Command from MQTT broker is :   ");
@@ -120,14 +121,14 @@ void callback(char* topic, byte* payload, unsigned int length)
   int location=String((char*)payload).toInt();
   Serial.println(location);
 
-  if(location==1) {                                // Abre gaveta
+  if(location==1) {                                // open box
     client.publish("status/box","Box opening...");
     if (myservo.read() != 0){
       myservo.write(0);
       delay(1000);
     }
 
-    direcao = 1;                                  // Define a direcao de rotacao
+    direcao = 1;                                  // Define rotation direction
     digitalWrite(pino_direcao, direcao);
     while(digitalRead(pino_chave2) == HIGH){
       digitalWrite(pino_passo, 1);
@@ -138,13 +139,13 @@ void callback(char* topic, byte* payload, unsigned int length)
     client.publish("status/box","Box open");
   } //end condition 1
 
-  else if(location==2) {                          // Fecha gaveta
+  else if(location==2) {                          // close box
     client.publish("status/box","Box closing...");
     if (myservo.read() != 0){
       myservo.write(0);
       delay(1000);
     }
-    direcao = 0;                                  // Inverte a direcao de rotacao
+    direcao = 0;                                  // reverse rotation direction
     digitalWrite(pino_direcao, direcao);
 
     while (digitalRead(pino_chave1) == HIGH){
@@ -162,19 +163,19 @@ void callback(char* topic, byte* payload, unsigned int length)
 
   } //end of condition 2
 
-  else if(location==3) {                        //Trava motor
+  else if(location==3) {                        //lock motor
    myservo.write(85);
 
   }
 
-  else if(location==4) {                        //Destrava motor
+  else if(location==4) {                        //unlock motor
    myservo.write(0);
 
   }
 }//end callback
 
-void reconnect() {
-  // Loop until we're reconnected
+void reconnect() {     // Loop until we're reconnected to mqtt server, try 3 times
+  
   while (!client.connected() and temps2 < 3)
   {
     Serial.print("Attempting MQTT connection...");
@@ -182,25 +183,23 @@ void reconnect() {
     String clientId = "ESP8266Client-";
     clientId += String(random(0xffff), HEX);
     // Attempt to connect
-    //if you MQTT broker has clientID,username and password
-    //please change following line to    if (client.connect(clientId,userName,passWord))
     if (client.connect(clientId.c_str()))
     {
       Serial.println("connected");
-     //once connected to MQTT broker, subscribe command if any
+     //once connected to MQTT broker, subscribe command on motor
       client.subscribe("motor");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
       Serial.println(" try again in 2 seconds");
-      // Wait 6 seconds before retrying
+      // Wait 2 seconds before retrying
       delay(2000);
     }
     temps2+=1;
   }
 } //end reconnect()
 
-void clearData(){
+void clearData(){     //clear data keypad
   while(data_count !=0){
     Data[data_count--] = 0;
   }
@@ -208,8 +207,7 @@ void clearData(){
 }
 
 void setup() {
-
-  // Define os pinos como saida
+  //define outputs pins
   pinMode(pino_passo, OUTPUT);
   pinMode(pino_direcao, OUTPUT);
   pinMode(pino_chave1, INPUT_PULLUP);
@@ -217,19 +215,14 @@ void setup() {
   myservo.attach(13);  // attaches the servo on pin 13 to the servo object
 
   setup_serial();
-  setup_wifi();
   setup_lcd();
   setup_rfid();
+  setup_wifi();
 
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
 
-  Serial.print(digitalRead(pino_chave1));
-  Serial.print(digitalRead(pino_chave2));
-
-
-
-  if(digitalRead(pino_chave1) == HIGH)
+  if(digitalRead(pino_chave1) == HIGH) //test if servo is open on the init
   {
     if (myservo.read() != 0){
       myservo.write(0);
@@ -250,52 +243,48 @@ void setup() {
     myservo.write(85);
     }
   }
-
-
-
-}
+} //end setup
 
 void loop() {
 
-  if (!client.connected()) {
+  if (!client.connected()) { //call reconnect funcition.
   reconnect();
 
   }
 
   if (!client.connected()) {
   
-    Serial.print(mfrc522.PICC_IsNewCardPresent());
+    //Serial.print(mfrc522.PICC_IsNewCardPresent());
 
-    if (mfrc522.PICC_IsNewCardPresent() and mfrc522.PICC_ReadCardSerial()) {
+    if (mfrc522.PICC_IsNewCardPresent() and mfrc522.PICC_ReadCardSerial()) {   //test if there is any tag present
       Serial.print("new tag is present");
-      String conteudo = "";      // cria uma string
+      String conteudo = "";      // inicilizate string to store tag content
  
-      Serial.println("id da tag :"); //imprime na serial o id do cartao
+      Serial.println("id da tag :"); 
     
-      for (byte i = 0; i < mfrc522.uid.size; i++){       // faz uma verificacao dos bits da memoria do cartao
-        //ambos comandos abaixo vão concatenar as informacoes do cartao...
-        //porem os 2 primeiros irao mostrar na serial e os 2 ultimos guardarao os valores na string de conteudo para fazer as verificacoes
+      for (byte i = 0; i < mfrc522.uid.size; i++){       // verify bits on card memory        
         Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
         Serial.print(mfrc522.uid.uidByte[i], HEX);
-        conteudo.concat(String(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " "));
+        conteudo.concat(String(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ")); //concatenate tag infos
         conteudo.concat(String(mfrc522.uid.uidByte[i], HEX));
       }
       Serial.println();
-      conteudo.toUpperCase();                      // deixa as letras da string todas maiusculas
+      conteudo.toUpperCase();                      // upper case conteudo
     
-      if (conteudo.substring(1) == "54 67 ED F7"){
-        Serial.println("Tag corrata, abrindo caixa");
+      if (conteudo.substring(1) == "54 67 ED F7"){  //test if presented tag is the correct tag
+        Serial.println("Tag correta, abrindo caixa");
+        lcd.clear();
         lcd.setCursor(0,0);
         lcd.print("Tag correta");
-        delay(2000);
-        if(digitalRead(pino_chave1) == LOW) {                                // Abre gaveta
+        delay(3000);
+        if(digitalRead(pino_chave1) == LOW) {                                // open box
 
           if (myservo.read() != 0){
             myservo.write(0);
             delay(1000);
           }
 
-          direcao = 1;                                  // Define a direcao de rotacao
+          direcao = 1;                                  // define rotation direction
           digitalWrite(pino_direcao, direcao);
           while(digitalRead(pino_chave2) == HIGH){
             digitalWrite(pino_passo, 1);
@@ -305,12 +294,12 @@ void loop() {
           }
         } //end condition 1
 
-        else if(digitalRead(pino_chave1) == HIGH) {                          // Fecha gaveta
+        else if(digitalRead(pino_chave1) == HIGH) {                          // close box
           if (myservo.read() != 0){
             myservo.write(0);
             delay(1000);
           }
-          direcao = 0;                                  // Inverte a direcao de rotacao
+          direcao = 0;                                  // reverse rotation direction
           digitalWrite(pino_direcao, direcao);
 
           while (digitalRead(pino_chave1) == HIGH){
@@ -329,40 +318,41 @@ void loop() {
 
       }
       else{
+        lcd.clear();
         Serial.println("Tag incorreta");
         lcd.setCursor(0,0);
         lcd.print("Tag incorreta");
-        delay(2000);
+        delay(3000);
       }
     }
 
-    customKey = customKeypad.getKey();
+    customKey = customKeypad.getKey(); //get the keys
 
     lcd.setCursor(0,0);
-    lcd.print("Enter Password:");
-    Serial.print(customKey);
+    lcd.print("Password or tag");
+    
+    //Serial.print(customKey);
 
     if (customKey){
-      Data[data_count] = customKey;
+      Data[data_count] = customKey; 
       lcd.setCursor(data_count,1);
       lcd.print(Data[data_count]);
       data_count++;
     }
 
-    if(data_count == Password_Length-1){
+    if(data_count == Password_Length-1){ //verify if pass is enough length
       lcd.clear();
 
-      if(!strcmp(Data, Master)){
-        lcd.print("Correct");           //se a senha for correta abre a gaveta
-        //---------------------------------------
-        if(digitalRead(pino_chave1) == LOW) {                                // Abre gaveta
+      if(!strcmp(Data, Master)){  //compair pass
+        lcd.print("Correct");           
+        if(digitalRead(pino_chave1) == LOW) {                                // open box
 
           if (myservo.read() != 0){
             myservo.write(0);
             delay(1000);
           }
 
-          direcao = 1;                                  // Define a direcao de rotacao
+          direcao = 1;                                  // Define rotation direction
           digitalWrite(pino_direcao, direcao);
           while(digitalRead(pino_chave2) == HIGH){
             digitalWrite(pino_passo, 1);
@@ -372,12 +362,12 @@ void loop() {
           }
         } //end condition 1
 
-        else if(digitalRead(pino_chave1) == HIGH) {                          // Fecha gaveta
+        else if(digitalRead(pino_chave1) == HIGH) {                          // close box
           if (myservo.read() != 0){
             myservo.write(0);
             delay(1000);
           }
-          direcao = 0;                                  // Inverte a direcao de rotacao
+          direcao = 0;                                  // reverse rotation direction
           digitalWrite(pino_direcao, direcao);
 
           while (digitalRead(pino_chave1) == HIGH){
